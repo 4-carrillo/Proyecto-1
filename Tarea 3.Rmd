@@ -1,0 +1,216 @@
+---
+title: 'Proyecto 1: Tarea 3'
+author: "Alexis Adrian Carrillo Medina"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+# Setup
+
+```{r setup, include=TRUE}
+
+library(ggplot2)
+library(survival)
+library(survminer) 
+
+Sujeto <- 1:20
+Edad <- c(37,40,42,44,46,48,49,50,51,52,52,53,56,57,59,62,63,63,64,65)
+Ab_de_alc <- c(1,0,0,1,0,0,1,1,1,0,0,0,1,0,0,1,1,1,1,1)
+remision_time <- c(0.3,1.8,1.7,1.5,2.5,3.7,2.9,2.3,2.8,4.6,3.8,5.3,3.6,2.6,2.9,5.5,2.8,4.0,6.0,4.3)
+Censura <- c(1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1,1,1)
+
+Data <- data.frame(Sujeto,Edad,Ab_de_alc,remision_time,Censura)
+
+```
+
+# Ejercicio
+
+Veinte sujetos son reclutados para un estudio clınico de un nuevo tratamiento para la cirrosis del
+higado, una enfermedad cronica caracterizada por la perdida de celulas hepaticas funcionales.
+Se cree que el nuevo tratamiento puede poner la cirrosis en remision, si la enfermedad es causada
+por el abuso del alcohol. (La remision es la atenuacion o desaparicion completa en el paciente
+de los signos y sıntomas de su enfermedad, ya sea como consecuencia del tratamiento o de
+forma espontanea.) <br>
+
+Las covariables son la edad de un sujeto (en años) y el indicador de abuso actual de alcohol
+(sı = 1, no = 0). El tiempo de supervivencia es el tiempo hasta una remision (en semanas). Si
+un sujeto murio durante el ensayo se considera censurado. Si un sujeto estaba a la espera de la
+remision, y continua hasta al final del estudio, tambien se considera censurado.
+
+### Realice un analisis descriptivo sobre el tiempo de supervivencia de los sujetos y de sus caracterısticas.
+
+Contamos con 5 variables(Sujeto, Edad, Abuso de alcohol, Tiempo de remision, Censura);
+Realizaremos graficas de como se relaciona el tiempo de supervivencia de estos individuos con sus caracteristicas
+
+Primero observemos la variable de Censura, para saber como se comportaron los individuos bajo este experimento y saber si es significativo el experimento.
+
+``` {r, include=TRUE}
+
+ggplot(data=Data,aes(x=as.factor(Censura)))+
+  geom_bar()
+
+```
+
+Lo que nos indica que la mayoria llegaron al tiempo de remision y entonces es significativo.
+
+Veamos las variables ahora.
+Para la Edad, primero veamos un histograma
+
+```{r, include=TRUE}
+
+ggplot(data=Data, aes(Edad)) + 
+  geom_histogram(bins=10)
+
+```
+
+
+Observemos que la mayoria de la genta es de edad 40+.
+Veamos como se relaciona esto con el tiempo de remision
+
+```{r, include=TRUE}
+ggplot(data=Data,aes(x=Edad,y=remision_time))+
+  geom_point()
+```
+
+Donde notamos que existe una leve relacion lineal entre la edad y el tiempo de remision: Entre mas edad mas tiempo de remision.
+Ahora veamos para abuso de alcohol
+
+```{r, include=TRUE}
+
+ggplot(data=Data,aes(group=Ab_de_alc,x=Ab_de_alc,y=remision_time))+
+  geom_boxplot()
+
+```
+
+De aqui notamos que el grupo que abusa del alchol y el grupo que no, no tienen grandes diferencias en el tiempo de remision, mas que el tercer cuartil del grupo que abuso del alcohol es ligeramente mayor.
+
+### Estime la funcion de Supervivencia $S(t)$ usando el metodo de Kaplan-Meier. Grafique
+$S(t)$ junto con sus intervalos de confianza del 95% para:
+
+  - La poblacion completa.
+  
+Veamos primero el modelo para la poblacion completa, utilizando Kaplan-Meier
+
+``` {r,include=TRUE}
+model1 <- survfit(Surv(remision_time,Censura)~1, type = "kaplan-meier", conf.type="none")
+plot(model1,mark="|",lwd=2,xlab="Semanas",ylab="S(t)",main="Kaplan-Meier")
+```
+  
+  - Por grupos de edad: 37-52 y 53-65.
+  
+  Agrupemos por poblacion
+  
+``` {r,include=TRUE}
+ 
+grupo = factor(Edad > 52)
+model2 <- survfit(Surv(remision_time,Censura)~grupo, type = "kaplan-meier", conf.type="none")
+plot(model2,mark="|",conf.int=T,lwd=2,xlab="Semanas", ylab="Supervivencia S(t)",lty=c(1,1),col=c("blue","red"),main = "Comparacion de Edades",col.main="darkred", col.lab="darkred")
+legend("topright", c("37-52", "53-65"), lty=c(1,1),col=c("blue","red"))
+  
+```
+Incialmente, pareciera que existen diferencias entre ambas funciones de supervivencia, no obstante los intervalos se entrecruzan, lo que indica que podria suceder que en realidad no existe un diferencia entre ambos grupos de edades, para ellos recurriremos al siguiente test estadistico
+
+``` {r,include=TRUE}
+survdiff(Surv(remision_time,Censura)~grupo,rho=0)
+```
+
+Como $p=0.006 < 0.05$ entonces tenemos que si existe diferencia entre los 2 grupos.
+
+  - Por abuso de alcohol.
+ 
+
+Realicemos el modelo por abuso
+
+``` {r,include=TRUE}
+model3 <- survfit(Surv(remision_time,Censura)~as.factor(Ab_de_alc), type = "kaplan-meier", conf.type="none")
+
+plot(model3,mark="|",conf.int=T,lwd=2,xlab="Semanas", ylab="Supervivencia S(t)",lty=c(1,1),col=c("blue","red"),main = "Comparacion por Abuso de alcohol",col.main="darkred", col.lab="darkred")
+legend("topright", c('No', "Si"), lty=c(1,1),col=c("blue","red"))
+```
+
+Entonces, a primera instancia, las curvas principales parecen tener diferencias, no obstante, se sobreponen una de otras, habra que volver a utilizar un test estadistico.
+
+``` {r,include=TRUE}
+survdiff(Surv(remision_time,Censura)~as.factor(Ab_de_alc),rho=0)
+```
+
+Entonces, como $p=0.5$  tenemos que como tal no podemos rechazar la hipotesis de que no existan diferencias.
+
+### Ajuste un modelo de riesgos proporcionales de Cox para definir la contribucion de las
+variables al tiempo de supervivencia de los pacientes.
+
+Probemos un modelo donde consideremos solo consideremos el abuso de alcohol y a la edad (Puesto que vimos una tendencia lineal en la edad.)
+
+``` {r,include=TRUE}
+cox1 <- coxph(Surv(remision_time,Censura)~Ab_de_alc+Edad)
+summary(cox1)
+```
+
+
+Parece ser que la variable de Abuso de Alcohol no es significativa, veamos un modelo sin ella.
+
+``` {r,include=TRUE}
+cox1 <- coxph(Surv(remision_time,Censura)~Edad)
+summary(cox1)
+```
+
+
+Observamos una mejora en el modelo, entonces este sera el adecuado.
+
+  -¿Cual es la estimacion puntual para los coeficientes de regresion? Interprete los
+  coeficientes de regresion.
+
+Veamos la estimacion
+
+```{r,include=TRUE}
+coef(cox1)
+```
+
+Los coeficientes del modelo de cox se refieren a la relacion que hay de supervivencia, en este caso como son el logarimto de un radio, entonces un coeficiente negativo, como este, significa que entre mas edad mas es la supervivencia, que en este caso significa mayor tiempo de remision.
+
+  -Obtenga un intervalo de confianza al 95% para la estimacion de los coeficientes de
+  regresion.
+
+``` {r,include=TRUE}
+confint(cox1)
+```
+
+
+Entonces el intervalo queda
+
+$$\beta_{inf}= -0.3246287 \;, \; \hat \beta_1 = 0.2067464 \;,\; \beta_{sup}=-0.0888641 $$
+
+  -¿Las variables explicativas tienen o no efecto en el modelo? Justifique.
+
+Si, como vemos en el siguiente codigo
+
+``` {r,include=TRUE}
+summary(cox1)
+```
+
+
+La variable edad tiene un $p-value=0.0005$ lo cual indica que es significativo
+
+  -¿Cual es la proporcion del riesgo de falla del abuso de alcohol? 
+  
+Ajustemos un modelo con abuso de alcohol
+
+``` {r,include=TRUE}
+cox1 <- coxph(Surv(remision_time,Censura)~Ab_de_alc+Edad)
+summary(cox1)
+```
+
+
+Recordemos que los coeficientes del modelo de cox no son mas que el logaritmo del radio entre 2 individuos que se diferencian entre la variable explicativa. Entonces tomando la exponencial de este coeficiente podemos ver en proporcion como cambia el riesgo de falla.
+Usando el codigo anterior tenemos que la proporcion por riesgo de falla por abuso de alcohol es 6.1696
+
+  -¿Los sujetos que tienen un abuso de alcohol tienen mayor riesgo de entrar en remision?
+  
+Dado que la proporcion anterior es positiva, nos indicaria que si. Aquellos que abusaron del alcohol tienen mayor riesgo de entrar en remision.
+
+
+
+
+
